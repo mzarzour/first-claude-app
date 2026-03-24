@@ -5,7 +5,17 @@ import heroImg from './assets/hero.png'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [form, setForm] = useState({ name: '', email: '', message: '' })
+  const [submitted, setSubmitted] = useState(false)
+
+  function handleChange(e) {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    setSubmitted(true)
+  }
 
   return (
     <>
@@ -16,17 +26,55 @@ function App() {
           <img src={viteLogo} className="vite" alt="Vite logo" />
         </div>
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+          <h1>Get in touch</h1>
+          <p>Fill out the form below and we'll get back to you.</p>
         </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+
+        {submitted ? (
+          <div className="form-success">
+            Thanks, {form.name}! We'll be in touch soon.
+          </div>
+        ) : (
+          <form className="contact-form" onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label htmlFor="name">Name</label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="Your name"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="message">Message</label>
+              <textarea
+                id="message"
+                name="message"
+                value={form.message}
+                onChange={handleChange}
+                placeholder="How can we help?"
+                rows={4}
+                required
+              />
+            </div>
+            <button type="submit" className="counter">Send Message</button>
+          </form>
+        )}
       </section>
 
       <div className="ticks"></div>
