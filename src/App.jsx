@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './App.css'
+import Login from './Login.jsx'
 
 const products = [
   {
@@ -54,6 +55,7 @@ const benefits = [
 ]
 
 export default function App() {
+  const [loggedIn, setLoggedIn] = useState(false)
   const [activeCategory, setActiveCategory] = useState('All')
   const [form, setForm] = useState({
     businessName: '', contactName: '', email: '', phone: '', storeType: '', message: '',
@@ -72,6 +74,10 @@ export default function App() {
     setSubmitted(true)
   }
 
+  if (!loggedIn) {
+    return <Login onLogin={() => setLoggedIn(true)} />
+  }
+
   return (
     <>
       {/* NAV */}
@@ -82,6 +88,7 @@ export default function App() {
             <a href="#products">Products</a>
             <a href="#tiers">Pricing</a>
             <a href="#apply" className="nav-cta">Apply Now</a>
+            <button className="nav-logout" onClick={() => setLoggedIn(false)}>Sign Out</button>
           </nav>
         </div>
       </header>
