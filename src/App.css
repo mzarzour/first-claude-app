@@ -1,111 +1,292 @@
-/* Login card — uses Shell Design System vars, not Tailwind */
-.login-page {
-  width: 100%;
-  height: 100svh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #F5F5F5;
-}
-.shell-card {
-  background: #fff;
-  box-shadow: 0px 1px 3px rgba(0,0,0,0.12), 0px 0px 1px rgba(0,0,0,0.1);
-  border-radius: 4px;
-  max-width: 300px;
-  width: 100%;
-}
-.shell-card-body {
-  padding: 20px;
-}
-.login-inner {
+/* ── Root layout ──────────────────────────────────────────────────────────── */
+.xls-root {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Segoe UI', -apple-system, Arial, sans-serif;
+  font-size: 12px;
+  color: #1f1f1f;
+  background: #fff;
+  user-select: none;
+}
+
+/* ── Title bar ───────────────────────────────────────────────────────────── */
+.xls-titlebar {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 4px 12px;
+  background: #217346;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
 }
-.shell-heading {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 24px;
-  color: #343434;
-  margin-bottom: 24px;
-  align-self: flex-start;
+.xls-appname { font-weight: 600; letter-spacing: 0.02em; }
+.xls-filename { opacity: 0.75; font-weight: 400; }
+
+/* ── Ribbon ──────────────────────────────────────────────────────────────── */
+.xls-ribbon {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px 8px;
+  background: #f3f2f1;
+  border-bottom: 1px solid #c8c6c4;
+  flex-shrink: 0;
 }
-.shell-btn {
+.xls-ribbon-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.xls-ribbon-sep {
+  width: 1px;
+  height: 18px;
+  background: #c8c6c4;
+  margin: 0 4px;
+}
+.xls-select {
+  height: 24px;
+  font-size: 11px;
+  border: 1px solid #c8c6c4;
+  border-radius: 2px;
+  background: #fff;
+  color: #1f1f1f;
+  padding: 0 4px;
+  cursor: pointer;
+  outline: none;
+}
+.xls-select:hover { border-color: #8a8886; }
+.xls-font-name { width: 108px; }
+.xls-font-size { width: 42px; }
+.xls-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: ShellBook, -apple-system, sans-serif;
-  font-weight: 600;
-  font-size: 16px;
-  line-height: 24px;
-  padding: 0 16px;
-  min-height: 40px;
-  min-width: 84px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 4px;
+  border: 1px solid transparent;
   border-radius: 2px;
-  border: none;
-  cursor: pointer;
-  transition: background 0.3s cubic-bezier(0.35,0,0.25,1), color 0.3s;
-  white-space: nowrap;
-}
-.shell-btn:focus-visible {
-  outline: 3px solid rgba(0,131,148,0.78);
-  outline-offset: 2px;
-}
-.shell-btn-primary {
-  background: #FFC600;
-  color: #343434;
-}
-.shell-btn-primary:hover { background: #FFDF55; }
-.shell-btn-outlined {
   background: transparent;
-  color: #343434;
-  border: 1px solid rgba(28,28,28,0.14);
+  color: #1f1f1f;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background 0.1s;
 }
-.shell-btn-outlined:hover {
-  border-color: rgba(28,28,28,0.3);
-  background: rgba(28,28,28,0.04);
-}
-.shell-btn-full { width: 100%; }
-.shell-field {
+.xls-btn:hover { background: #e1dfdd; border-color: #c8c6c4; }
+.xls-btn.active { background: #deecf9; border-color: #0078d4; }
+.bold-btn   { font-weight: 700; }
+.italic-btn { font-style: italic; }
+.underline-btn { text-decoration: underline; }
+
+/* ── Formula bar ─────────────────────────────────────────────────────────── */
+.xls-fbar {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 100%;
-}
-.shell-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #343434;
-}
-.shell-input {
-  font-family: ShellBook, -apple-system, sans-serif;
-  font-size: 16px;
-  padding: 7px 12px;
-  min-height: 40px;
-  border: 1px solid rgba(28,28,28,0.14);
-  border-radius: 2px;
-  background: #fff;
-  color: #343434;
-  width: 100%;
-  transition: border-color 0.2s;
-}
-.shell-input:focus {
-  outline: 3px solid rgba(0,131,148,0.78);
-  border-color: transparent;
-}
-.shell-error {
-  font-size: 14px;
-  color: #d93025;
-  padding: 8px 12px;
-  background: #fce8e6;
-  border-radius: 2px;
-  width: 100%;
-}
-.login-form {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  height: 28px;
+  border-bottom: 1px solid #c8c6c4;
+  background: #fff;
+  flex-shrink: 0;
+}
+.xls-namebox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 100%;
+  border-right: 1px solid #c8c6c4;
+  font-size: 12px;
+  font-weight: 500;
+  color: #323130;
+  background: #f3f2f1;
+  padding: 0 6px;
+}
+.xls-fx {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 100%;
+  border-right: 1px solid #c8c6c4;
+  font-style: italic;
+  font-size: 13px;
+  color: #605e5c;
+}
+.xls-fbar-input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  outline: none;
+  padding: 0 8px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: #1f1f1f;
+  background: #fff;
+}
+
+/* ── Grid wrapper ────────────────────────────────────────────────────────── */
+.xls-grid-wrap {
+  flex: 1;
+  overflow: auto;
+  outline: none;
+  background: #fff;
+}
+.xls-grid-wrap:focus { outline: none; }
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+.xls-grid {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* ── Header cells ────────────────────────────────────────────────────────── */
+.xls-hdr {
+  background: #f3f2f1;
+  border: 1px solid #d0d0d0;
+  text-align: center;
+  font-weight: 500;
+  font-size: 11px;
+  color: #605e5c;
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 0 2px;
+}
+.xls-corner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 30;
+}
+.xls-col-hdr {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 24px;
+}
+.xls-row-hdr {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  width: 46px;
+  min-width: 46px;
+}
+.xls-hdr.active {
+  background: #c6e0b4;
+  color: #1f1f1f;
+  font-weight: 600;
+}
+
+/* ── Data cells ──────────────────────────────────────────────────────────── */
+.xls-cell {
+  border: 1px solid #d9d9d9;
+  padding: 0;
+  position: relative;
+  vertical-align: top;
+  overflow: visible;
+}
+.xls-cell.sel {
+  outline: 2px solid #217346;
+  outline-offset: -1px;
+  z-index: 5;
+  background: #f0f9f4;
+}
+.xls-cell-text {
+  display: block;
+  height: 100%;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xls-edit-input {
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  padding: 0 4px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: #1f1f1f;
+  background: #fff;
+  box-shadow: 0 0 0 2px #217346, 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 20;
+  line-height: 24px;
+}
+
+/* ── Status bar / sheet tabs ─────────────────────────────────────────────── */
+.xls-statusbar {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  border-top: 1px solid #c8c6c4;
+  background: #f3f2f1;
+  flex-shrink: 0;
+  padding: 0 4px;
+  gap: 0;
+}
+.xls-tab-add {
+  width: 24px;
+  height: 20px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: #605e5c;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+.xls-tab-add:hover { background: #e1dfdd; border-color: #c8c6c4; }
+.xls-tab-list {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.xls-tab-list::-webkit-scrollbar { display: none; }
+.xls-tab {
+  height: 26px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  color: #605e5c;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.xls-tab:hover { background: #e1dfdd; }
+.xls-tab.active {
+  background: #fff;
+  color: #1f1f1f;
+  font-weight: 600;
+  border-color: #c8c6c4;
+  border-bottom-color: #fff;
+  border-top: 2px solid #217346;
+}
+.xls-status-right {
+  font-size: 11px;
+  color: #605e5c;
+  padding: 0 12px;
+  flex-shrink: 0;
+  font-family: 'Consolas', monospace;
 }

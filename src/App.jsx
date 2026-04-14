@@ -1,374 +1,471 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import './App.css'
-import Login from './Login.jsx'
 
-/* ── Images (from Shell Energy's Contentful CDN) ── */
-const LOGO = 'https://images.ctfassets.net/1n54v69mwqrd/4QS6pCsoLCNblVSK1Mcms0/7ec272f4f20c46bb737215775ac39e3f/shell-energy-logo.svg'
-const HERO_BG = 'https://images.ctfassets.net/1n54v69mwqrd/3QunHPJ8XkhPR9DbRidQHc/4d079fa8c4b525ffa8a68ef6af83147a/Houston-downtown-skyline.jpg?fm=webp&w=1920&q=75'
-const IMG_WHY = 'https://images.ctfassets.net/1n54v69mwqrd/7AZ36ICeW4alF3ggg12Jda/630cb8a8d1295563bd1b6f3920215d37/image_-_2024-10-10T113812.219.png?fm=webp&w=128&q=75'
-const IMG_INTEGRATED = 'https://images.ctfassets.net/1n54v69mwqrd/2iRhIZ1p0o9oVDk6e9gwsQ/5a0f605e1a55200be3c8dee56481afda/image_-_2024-10-10T113817.079.png?fm=webp&w=128&q=75'
-const IMG_QUOTE = 'https://images.ctfassets.net/1n54v69mwqrd/3NAm9cL2eqh1EvVdpAogWk/ddab274e5fa0782d56806d4e08a18937/image_-_2024-10-10T113829.665.png?fm=webp&w=128&q=75'
-const IMG_BILL = 'https://images.ctfassets.net/1n54v69mwqrd/4Lra8EOWfyWY1UZEa1ijj5/b340db1f15715fb0cf3a08e6accb7335/image_-_2024-10-10T113824.066.png?fm=webp&w=128&q=75'
-const IMG_SPLIT = 'https://images.ctfassets.net/1n54v69mwqrd/7CaPkFYPYdTUiAE30eDEOz/6e1343b27ebdbfb0d4d979eccf8486cb/image_-_2024-10-14T072547.832.png?fm=webp&w=960&q=75'
-const IMG_DECARB = 'https://images.ctfassets.net/1n54v69mwqrd/3z7zSyGjhwuXkb6mOPaQqO/a1de3e00c4a3af62d20e2c1ecd0ec0e0/image_-_2024-10-10T113741.534.png?fm=webp&w=960&q=75'
+// ─── Constants ────────────────────────────────────────────────────────────────
+const NUM_COLS = 26
+const NUM_ROWS = 100
+const COL_WIDTH = 100
+const ROW_HEIGHT = 24
+const ROW_HDR_W = 46
 
-const quickLinks = [
-  { label: 'Why Shell?',                icon: IMG_WHY },
-  { label: 'Integrated Energy Solutions', icon: IMG_INTEGRATED },
-  { label: 'Request a Quote',           icon: IMG_QUOTE },
-  { label: 'Pay My Bill',               icon: IMG_BILL },
-]
+const COLS = Array.from({ length: NUM_COLS }, (_, i) => String.fromCharCode(65 + i))
 
-const solutions = [
-  {
-    title: 'Energy Supply',
-    body: 'We have the resources and expertise to provide coast-to-coast coverage in the United States, offering a variety of structured solutions to fit your business\'s needs.',
-  },
-  {
-    title: 'Energy Solutions',
-    body: 'Shell Energy offers a variety of integrated energy solutions to help your business control costs, manage emissions, mitigate risks, and increase operational efficiencies.',
-  },
-  {
-    title: 'Renewable Solutions',
-    body: 'Shell Energy provides a range of cost-effective, renewable energy and environmental products to help you navigate the energy transition.',
-  },
-  {
-    title: 'Wholesale',
-    body: 'From generation and transmission to transportation and storage, Shell Energy offers power solutions that utilities, generators, municipalities, and community choice aggregators need.',
-  },
-]
+const colIdx = (col) => col.charCodeAt(0) - 65
+const idxToCol = (i) => String.fromCharCode(65 + i)
 
-const footerCols = [
-  {
-    heading: 'Company',
-    links: ['Home', 'Who We Are', 'Why Shell', 'Cookie Policy', 'Your Privacy Choices', 'Shell Energy Global', 'Residential'],
-  },
-  {
-    heading: 'Important Links',
-    links: ['Code of Trading Ethics', 'STRM LLC Annual Financials', 'STRM LLC Semi-Annual Financials', 'Privacy Notice', 'Accessibility'],
-  },
-  {
-    heading: 'Quick Pay',
-    links: ['Get in Touch', 'Careers', 'Media', 'Contact Us', 'Request a Quote', 'Login'],
-  },
-  {
-    heading: 'Connect',
-    links: ['LinkedIn', 'YouTube'],
-  },
-]
+const parseCellRef = (ref) => {
+  const m = String(ref).match(/^([A-Z]+)(\d+)$/)
+  if (!m) return null
+  return { col: m[1], row: parseInt(m[2], 10) }
+}
 
-export default function App() {
-  const [showLogin, setShowLogin] = useState(false)
-  const [loggedIn, setLoggedIn] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+// ─── Formula Engine ───────────────────────────────────────────────────────────
+const expandRange = (range) => {
+  const parts = range.split(':')
+  if (parts.length !== 2) return []
+  const s = parseCellRef(parts[0].trim())
+  const e = parseCellRef(parts[1].trim())
+  if (!s || !e) return []
+  const refs = []
+  for (let r = s.row; r <= e.row; r++)
+    for (let ci = colIdx(s.col); ci <= colIdx(e.col); ci++)
+      refs.push(`${idxToCol(ci)}${r}`)
+  return refs
+}
 
-  if (showLogin && !loggedIn) {
-    return <Login onLogin={() => { setLoggedIn(true); setShowLogin(false) }} onBack={() => setShowLogin(false)} />
+const evaluate = (formula, getData, depth = 0) => {
+  if (depth > 20) return '#REF!'
+  if (!formula || !formula.startsWith('=')) {
+    const n = parseFloat(formula)
+    return formula === '' ? '' : (isNaN(n) ? formula : n)
   }
 
-  return (
-    <div className="min-h-screen bg-white text-foreground font-[ShellBook,sans-serif]">
+  const expr = formula.slice(1)
 
-      {/* ── Top utility bar ── */}
-      <div className="hidden lg:block w-full bg-gray-100 px-8">
-        <div className="mx-auto shell-container w-full flex">
-          <div className="flex flex-1" />
-          <div className="flex items-center">
-            {/* US flag */}
-            <button className="inline-flex items-center gap-1 h-9 px-4 py-2 text-base hover:bg-accent rounded-lg transition-colors">
-              <span className="text-lg">🇺🇸</span>
-              <span className="flex items-center gap-1">
-                US
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-              </span>
-            </button>
-            {/* Login */}
-            <button
-              className="inline-flex items-center gap-1 h-9 px-4 py-2 text-base hover:bg-accent rounded-lg transition-colors"
-              onClick={() => setShowLogin(true)}
-            >
-              Login
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
-            {/* Request a quote */}
-            <a href="#contact" className="inline-flex items-center gap-2 h-9 px-4 py-2 text-base hover:underline underline-offset-2">
-              <img src="https://images.ctfassets.net/1n54v69mwqrd/5rW0mEg7J0kSPmG7ZjynE6/4ae854d753b044f1f087075bf2e530e4/note-icon.svg?w=32&q=50" alt="" width="16" height="16" />
-              Request a quote
-            </a>
-            {/* Shell.us */}
-            <a href="https://www.shell.us/business-customers.html" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 h-9 px-4 py-2 text-base hover:underline underline-offset-2">
-              Shell.us
-            </a>
-          </div>
+  const resolveRef = (ref) => {
+    const raw = getData(ref.toUpperCase()) || ''
+    if (raw.startsWith('=')) return evaluate(raw, getData, depth + 1)
+    const n = parseFloat(raw)
+    return raw === '' ? '' : (isNaN(n) ? raw : n)
+  }
+
+  const toNum = (v) => {
+    if (v === '' || v === null || v === undefined) return 0
+    const n = parseFloat(v)
+    return isNaN(n) ? 0 : n
+  }
+
+  // Function call: NAME(args)
+  const fnMatch = expr.match(/^([A-Za-z_][A-Za-z0-9_]*)\(([\s\S]*)\)$/)
+  if (fnMatch) {
+    const fn = fnMatch[1].toUpperCase()
+    const rawArgs = fnMatch[2]
+
+    // Split args by comma (respecting nested parens)
+    const argParts = []
+    let pd = 0, cur = ''
+    for (const ch of rawArgs) {
+      if (ch === '(') { pd++; cur += ch }
+      else if (ch === ')') { pd--; cur += ch }
+      else if (ch === ',' && pd === 0) { argParts.push(cur.trim()); cur = '' }
+      else cur += ch
+    }
+    if (cur.trim()) argParts.push(cur.trim())
+
+    let vals = []
+    for (const arg of argParts) {
+      if (/^[A-Z]+\d+:[A-Z]+\d+$/i.test(arg)) {
+        expandRange(arg.toUpperCase()).forEach(r => vals.push(resolveRef(r)))
+      } else if (/^[A-Z]+\d+$/i.test(arg)) {
+        vals.push(resolveRef(arg))
+      } else {
+        const n = parseFloat(arg)
+        vals.push(isNaN(n) ? arg.replace(/^"|"$/g, '') : n)
+      }
+    }
+
+    const nums = vals.map(toNum)
+
+    switch (fn) {
+      case 'SUM':         return nums.reduce((a, b) => a + b, 0)
+      case 'AVERAGE':
+      case 'AVG':         return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0
+      case 'MIN':         return nums.length ? Math.min(...nums) : 0
+      case 'MAX':         return nums.length ? Math.max(...nums) : 0
+      case 'COUNT':       return vals.filter(v => v !== '' && !isNaN(parseFloat(v))).length
+      case 'COUNTA':      return vals.filter(v => v !== '' && v !== null).length
+      case 'ABS':         return Math.abs(nums[0])
+      case 'ROUND':       { const p = Math.pow(10, nums[1] || 0); return Math.round(nums[0] * p) / p }
+      case 'FLOOR':       return Math.floor(nums[0])
+      case 'CEIL':
+      case 'CEILING':     return Math.ceil(nums[0])
+      case 'SQRT':        return Math.sqrt(nums[0])
+      case 'POWER':       return Math.pow(nums[0], nums[1])
+      case 'MOD':         return nums[0] % nums[1]
+      case 'IF':          return vals[0] ? (vals[1] ?? '') : (vals[2] ?? '')
+      case 'AND':         return vals.every(Boolean) ? 'TRUE' : 'FALSE'
+      case 'OR':          return vals.some(Boolean) ? 'TRUE' : 'FALSE'
+      case 'NOT':         return !vals[0] ? 'TRUE' : 'FALSE'
+      case 'CONCAT':
+      case 'CONCATENATE': return vals.join('')
+      case 'LEN':         return String(vals[0] ?? '').length
+      case 'LEFT':        return String(vals[0] ?? '').slice(0, nums[1] || 1)
+      case 'RIGHT':       return String(vals[0] ?? '').slice(-(nums[1] || 1))
+      case 'MID':         return String(vals[0] ?? '').slice(nums[1] - 1, nums[1] - 1 + nums[2])
+      case 'UPPER':       return String(vals[0] ?? '').toUpperCase()
+      case 'LOWER':       return String(vals[0] ?? '').toLowerCase()
+      case 'TRIM':        return String(vals[0] ?? '').trim()
+      case 'VALUE':       return toNum(vals[0])
+      default:            return '#NAME?'
+    }
+  }
+
+  // Replace cell refs with values, then eval as JS expression
+  const substituted = expr.replace(/[A-Z]+\d+/gi, (ref) => {
+    const val = resolveRef(ref.toUpperCase())
+    if (typeof val === 'string') return JSON.stringify(val)
+    return val === '' ? 0 : val
+  })
+
+  try {
+    // eslint-disable-next-line no-new-func
+    return Function('"use strict"; return (' + substituted + ')')()
+  } catch {
+    return '#ERROR!'
+  }
+}
+
+const fmtDisplay = (val) => {
+  if (val === '' || val === null || val === undefined) return ''
+  if (typeof val === 'number') {
+    if (!isFinite(val)) return val > 0 ? '#DIV/0!' : '#NUM!'
+    return parseFloat(val.toPrecision(12)).toString()
+  }
+  return String(val)
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [sheets, setSheets] = useState(['Sheet1', 'Sheet2', 'Sheet3'])
+  const [activeSheet, setActiveSheet] = useState('Sheet1')
+  // allData: { sheetName: { 'A1': { v, bold, italic, underline, align } } }
+  const [allData, setAllData] = useState({ Sheet1: {}, Sheet2: {}, Sheet3: {} })
+
+  const [selCell, setSelCell] = useState({ col: 'A', row: 1 })
+  const [editCell, setEditCell] = useState(null)
+  const [editVal, setEditVal] = useState('')
+
+  const containerRef = useRef(null)
+  const editInputRef = useRef(null)
+  const formulaBarRef = useRef(null)
+
+  const selRef = `${selCell.col}${selCell.row}`
+  const editRef = editCell ? `${editCell.col}${editCell.row}` : null
+  const sheetData = allData[activeSheet] || {}
+  const selCellData = sheetData[selRef] || {}
+
+  const getData = useCallback((ref) => sheetData[ref]?.v || '', [sheetData])
+
+  const getDisplay = useCallback((ref) => {
+    const raw = getData(ref)
+    if (!raw) return ''
+    return fmtDisplay(evaluate(raw, getData))
+  }, [getData])
+
+  const setCell = useCallback((ref, patch) => {
+    setAllData(prev => ({
+      ...prev,
+      [activeSheet]: {
+        ...prev[activeSheet],
+        [ref]: { ...(prev[activeSheet]?.[ref] || {}), ...patch }
+      }
+    }))
+  }, [activeSheet])
+
+  const commitEdit = useCallback(() => {
+    if (editRef) setCell(editRef, { v: editVal })
+    setEditCell(null)
+    setEditVal('')
+  }, [editRef, editVal, setCell])
+
+  const cancelEdit = useCallback(() => {
+    setEditCell(null)
+    setEditVal('')
+  }, [])
+
+  const beginEdit = useCallback((ref, initial = null) => {
+    const parsed = parseCellRef(ref)
+    if (!parsed) return
+    setEditCell(parsed)
+    setEditVal(initial !== null ? initial : (sheetData[ref]?.v || ''))
+  }, [sheetData])
+
+  const move = useCallback((dc, dr) => {
+    setSelCell(prev => ({
+      col: idxToCol(Math.max(0, Math.min(NUM_COLS - 1, colIdx(prev.col) + dc))),
+      row: Math.max(1, Math.min(NUM_ROWS, prev.row + dr)),
+    }))
+  }, [])
+
+  const goTo = useCallback((col, row) => {
+    setSelCell({ col, row })
+    setEditCell(null)
+  }, [])
+
+  useEffect(() => {
+    if (editCell && editInputRef.current) {
+      const inp = editInputRef.current
+      inp.focus()
+      inp.setSelectionRange(inp.value.length, inp.value.length)
+    }
+  }, [editCell])
+
+  useEffect(() => { containerRef.current?.focus() }, [])
+
+  // Formatting shortcuts require reading current selRef and selCellData at call time
+  const toggleBold   = () => setCell(selRef, { bold: !selCellData.bold })
+  const toggleItalic = () => setCell(selRef, { italic: !selCellData.italic })
+  const setAlign     = (a) => setCell(selRef, { align: a })
+
+  const handleKeyDown = (e) => {
+    const meta = e.ctrlKey || e.metaKey
+    if (editCell) return
+
+    if (meta && e.key === 'b') { e.preventDefault(); toggleBold(); return }
+    if (meta && e.key === 'i') { e.preventDefault(); toggleItalic(); return }
+    if (meta && e.key === 'c') {
+      navigator.clipboard?.writeText(getDisplay(selRef)).catch(() => {})
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowUp':    e.preventDefault(); move(0, -1); break
+      case 'ArrowDown':  e.preventDefault(); move(0, 1); break
+      case 'ArrowLeft':  e.preventDefault(); move(-1, 0); break
+      case 'ArrowRight': e.preventDefault(); move(1, 0); break
+      case 'Tab':        e.preventDefault(); move(e.shiftKey ? -1 : 1, 0); break
+      case 'Enter':      e.preventDefault(); beginEdit(selRef); break
+      case 'F2':         e.preventDefault(); beginEdit(selRef); break
+      case 'Delete':
+      case 'Backspace':  e.preventDefault(); setCell(selRef, { v: '' }); break
+      default:
+        if (e.key.length === 1 && !meta) { e.preventDefault(); beginEdit(selRef, e.key) }
+    }
+  }
+
+  const handleCellKeyDown = (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); commitEdit(); move(0, 1);  containerRef.current?.focus() }
+    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); containerRef.current?.focus() }
+    if (e.key === 'Tab')    { e.preventDefault(); commitEdit(); move(e.shiftKey ? -1 : 1, 0); containerRef.current?.focus() }
+  }
+
+  const fbarVal = editCell ? editVal : (sheetData[selRef]?.v || '')
+
+  const handleFbarChange = (e) => {
+    if (editCell) setEditVal(e.target.value)
+    else beginEdit(selRef, e.target.value)
+  }
+
+  const handleFbarKeyDown = (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); commitEdit(); containerRef.current?.focus() }
+    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); containerRef.current?.focus() }
+  }
+
+  const addSheet = () => {
+    let i = sheets.length + 1
+    let name = `Sheet${i}`
+    while (sheets.includes(name)) { i++; name = `Sheet${i}` }
+    setSheets(p => [...p, name])
+    setAllData(p => ({ ...p, [name]: {} }))
+    setActiveSheet(name)
+  }
+
+  const switchSheet = (name) => {
+    if (editCell) commitEdit()
+    setActiveSheet(name)
+    setSelCell({ col: 'A', row: 1 })
+    setEditCell(null)
+    containerRef.current?.focus()
+  }
+
+  // Status bar: show sum/avg when selected cell has a value
+  const statusVal = selCellData.v
+    ? selCellData.v.startsWith('=')
+      ? `= ${fmtDisplay(evaluate(selCellData.v, getData))}`
+      : selCellData.v
+    : ''
+
+  return (
+    <div className="xls-root">
+      {/* Title bar */}
+      <div className="xls-titlebar">
+        <ExcelIcon />
+        <span className="xls-appname">Spreadsheet</span>
+        <span className="xls-filename">Book1</span>
+      </div>
+
+      {/* Ribbon */}
+      <div className="xls-ribbon">
+        <div className="xls-ribbon-group">
+          <select className="xls-select xls-font-name">
+            <option>Calibri</option><option>Arial</option>
+            <option>Times New Roman</option><option>Courier New</option>
+          </select>
+          <select className="xls-select xls-font-size">
+            {[8,9,10,11,12,14,16,18,20,24].map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+
+        <div className="xls-ribbon-sep" />
+
+        <div className="xls-ribbon-group">
+          <button className={`xls-btn bold-btn${selCellData.bold ? ' active' : ''}`} onClick={toggleBold} title="Bold (Ctrl+B)">B</button>
+          <button className={`xls-btn italic-btn${selCellData.italic ? ' active' : ''}`} onClick={toggleItalic} title="Italic (Ctrl+I)">I</button>
+          <button className="xls-btn underline-btn" title="Underline">U</button>
+        </div>
+
+        <div className="xls-ribbon-sep" />
+
+        <div className="xls-ribbon-group">
+          <button className={`xls-btn${selCellData.align === 'left' ? ' active' : ''}`} onClick={() => setAlign('left')} title="Align Left"><AlignLeftSVG /></button>
+          <button className={`xls-btn${selCellData.align === 'center' ? ' active' : ''}`} onClick={() => setAlign('center')} title="Center"><AlignCenterSVG /></button>
+          <button className={`xls-btn${selCellData.align === 'right' ? ' active' : ''}`} onClick={() => setAlign('right')} title="Align Right"><AlignRightSVG /></button>
+        </div>
+
+        <div className="xls-ribbon-sep" />
+
+        <div className="xls-ribbon-group">
+          <select className="xls-select">
+            <option>General</option><option>Number</option>
+            <option>Currency</option><option>Percentage</option><option>Date</option>
+          </select>
         </div>
       </div>
 
-      {/* ── Main nav ── */}
-      <nav className="bg-white px-8 py-6 sticky top-0 z-30 shadow-sm">
-        <div className="mx-auto shell-container w-full flex items-center">
-          {/* Logo */}
-          <a href="/" className="w-[165px] mr-8 flex-shrink-0">
-            <img src={LOGO} alt="Shell Energy Logo" width="210" height="43" className="w-full h-auto" />
-          </a>
+      {/* Formula bar */}
+      <div className="xls-fbar">
+        <div className="xls-namebox">{selRef}</div>
+        <div className="xls-fx">fx</div>
+        <input
+          ref={formulaBarRef}
+          className="xls-fbar-input"
+          value={fbarVal}
+          onChange={handleFbarChange}
+          onKeyDown={handleFbarKeyDown}
+          onFocus={() => { if (!editCell) beginEdit(selRef, sheetData[selRef]?.v || '') }}
+          spellCheck={false}
+        />
+      </div>
 
-          {/* Desktop nav links */}
-          <ul className="hidden lg:flex flex-1 items-center gap-1">
-            {['Why Shell', 'Products & Services', 'Decarbonization', 'Energy Insights'].map(item => (
-              <li key={item}>
-                <button className="inline-flex items-center gap-1 h-9 px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors text-base">
-                  {item}
-                  <svg className="w-3 h-3 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-                </button>
-              </li>
-            ))}
-            <li className="flex-1 text-right">
-              <a href="#contact" className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-500-hover transition-colors text-base">
-                Contact us
-              </a>
-            </li>
-          </ul>
+      {/* Grid */}
+      <div
+        ref={containerRef}
+        className="xls-grid-wrap"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+      >
+        <table className="xls-grid">
+          <colgroup>
+            <col style={{ width: ROW_HDR_W }} />
+            {COLS.map(col => <col key={col} style={{ width: COL_WIDTH }} />)}
+          </colgroup>
+          <thead>
+            <tr style={{ height: ROW_HEIGHT }}>
+              <th className="xls-hdr xls-corner" />
+              {COLS.map(col => (
+                <th key={col} className={`xls-hdr xls-col-hdr${selCell.col === col ? ' active' : ''}`}>{col}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: NUM_ROWS }, (_, i) => {
+              const row = i + 1
+              return (
+                <tr key={row} style={{ height: ROW_HEIGHT }}>
+                  <td className={`xls-hdr xls-row-hdr${selCell.row === row ? ' active' : ''}`}>{row}</td>
+                  {COLS.map(col => {
+                    const ref = `${col}${row}`
+                    const isSel = selRef === ref
+                    const isEditing = editRef === ref
+                    const cell = sheetData[ref] || {}
+                    const raw = cell.v || ''
+                    const displayVal = getDisplay(ref)
+                    const isNum = raw
+                      ? raw.startsWith('=')
+                        ? typeof evaluate(raw, getData) === 'number'
+                        : !isNaN(parseFloat(raw)) && raw.trim() !== ''
+                      : false
+                    const align = cell.align || (isNum ? 'right' : 'left')
 
-          {/* Mobile hamburger */}
-          <button
-            className="lg:hidden ml-auto p-2 rounded-lg hover:bg-accent"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
-          >
-            <svg className="w-6 h-6 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
-            </svg>
-          </button>
-        </div>
+                    return (
+                      <td
+                        key={ref}
+                        className={`xls-cell${isSel ? ' sel' : ''}`}
+                        onClick={() => { if (editCell) commitEdit(); goTo(col, row); containerRef.current?.focus() }}
+                        onDoubleClick={() => { goTo(col, row); beginEdit(ref) }}
+                      >
+                        {isEditing ? (
+                          <input
+                            ref={editInputRef}
+                            className="xls-edit-input"
+                            value={editVal}
+                            onChange={e => setEditVal(e.target.value)}
+                            onKeyDown={handleCellKeyDown}
+                            spellCheck={false}
+                          />
+                        ) : (
+                          <div className="xls-cell-text" style={{
+                            textAlign: align,
+                            fontWeight: cell.bold ? 'bold' : undefined,
+                            fontStyle: cell.italic ? 'italic' : undefined,
+                            textDecoration: cell.underline ? 'underline' : undefined,
+                          }}>
+                            {displayVal}
+                          </div>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
 
-        {/* Mobile menu */}
-        {mobileOpen && (
-          <div className="lg:hidden border-t border-border mt-4 pt-4 flex flex-col gap-2 px-4">
-            {['Why Shell', 'Products & Services', 'Decarbonization', 'Energy Insights'].map(item => (
-              <a key={item} href="#" className="py-2 text-base font-medium hover:text-primary">{item}</a>
-            ))}
-            <a href="#contact" className="mt-2 inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-primary-500 text-white font-medium">Contact us</a>
-            <button onClick={() => setShowLogin(true)} className="text-left py-2 text-base font-medium hover:text-primary">Login</button>
-          </div>
-        )}
-      </nav>
-
-      {/* ── Hero ── */}
-      <section className="relative w-full h-[500px] max-md:grid max-md:grid-rows-[180px_70px_auto] max-md:h-auto px-0">
-        {/* Background image */}
-        <div className="absolute inset-0 max-md:row-start-1 max-md:row-end-3">
-          <img
-            src={HERO_BG}
-            alt="Houston city skyline"
-            className="w-full h-full object-cover animate-fade-in"
-            fetchPriority="high"
-          />
-        </div>
-        {/* Hero card */}
-        <div className="flex items-center z-10 md:absolute md:inset-0 max-md:row-start-2 max-md:row-end-4 px-8">
-          <div className="mx-auto shell-container w-full">
-            <div className="bg-white rounded-xl p-6 md:max-w-md md:min-w-72 md:w-auto max-md:w-full animate-fade-in md:mr-auto">
-              <h1 className="font-semibold text-foreground text-4xl leading-[1.35] mb-4">
-                A better way to power your business
-              </h1>
-              <p className="text-xl leading-relaxed text-foreground">
-                Shell Energy can help you build momentum by breaking down the complexities of your energy transition.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Quick links ── */}
-      <section className="p-8 bg-gray-50">
-        <div className="mx-auto shell-container w-full flex flex-wrap gap-4 justify-around max-md:justify-start">
-          {quickLinks.map(({ label, icon }) => (
-            <a key={label} href="#" className="hover:no-underline flex-1 min-w-[calc(50%-2rem)] md:min-w-0">
-              <div className="rounded-2xl border bg-card py-6 px-3 flex flex-col items-center text-center card-hover w-full h-full">
-                <div className="mb-4 w-full flex justify-center h-[60px]">
-                  <img src={icon} alt={label} className="h-full w-auto object-contain" />
-                </div>
-                <span className="text-base font-semibold text-foreground">{label}</span>
-              </div>
-            </a>
+      {/* Sheet tabs + status bar */}
+      <div className="xls-statusbar">
+        <button className="xls-tab-add" onClick={addSheet} title="New sheet">+</button>
+        <div className="xls-tab-list">
+          {sheets.map(name => (
+            <button
+              key={name}
+              className={`xls-tab${activeSheet === name ? ' active' : ''}`}
+              onClick={() => switchSheet(name)}
+            >{name}</button>
           ))}
         </div>
-      </section>
-
-      {/* ── About Shell Energy ── */}
-      <section className="mx-auto shell-container w-full px-8 py-16 flex flex-col md:flex-row gap-12 items-center">
-        <div className="flex-1">
-          <h2 className="text-3xl font-semibold text-foreground mb-6 leading-snug">
-            A better energy future is within your reach
-          </h2>
-          <p className="text-base text-foreground leading-relaxed mb-4">
-            Shell Energy provides innovative, reliable, cleaner energy solutions through a portfolio of natural gas, wholesale and retail power, environmental products and energy efficiency offers to commercial and industrial customers.
-          </p>
-          <p className="text-base text-foreground leading-relaxed mb-4">
-            We are a leader across the value chain — from generation, trading and supply, to behind-the-meter solutions.
-          </p>
-          <p className="text-base text-foreground leading-relaxed mb-8">
-            Shell Energy is your guide, making it easier to manage day-to-day energy needs while increasing efficiency, managing costs, and addressing your decarbonization goals.
-          </p>
-          <a href="#contact" className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-500-hover transition-colors">
-            Request a quote
-          </a>
-        </div>
-        <div className="flex-1 relative rounded-xl overflow-hidden min-h-[320px] w-full">
-          <img src={IMG_SPLIT} alt="Shell Energy representative" className="w-full h-full object-cover rounded-xl" />
-        </div>
-      </section>
-
-      {/* ── Video / Transcript banner ── */}
-      <section className="bg-gray-50 py-16 px-8">
-        <div className="mx-auto shell-container w-full">
-          <p className="text-sm font-medium text-primary uppercase tracking-wider mb-3">Discover how we can make progress together.</p>
-          <h2 className="text-3xl font-semibold text-foreground mb-4 max-w-xl leading-snug">
-            Discover how Shell Energy is powering progress together with teams and customers to deliver reliable and cleaner energy today and tomorrow.
-          </h2>
-          <button className="inline-flex items-center gap-2 text-primary font-medium hover:underline underline-offset-2">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            Read the transcript
-          </button>
-        </div>
-      </section>
-
-      {/* ── Why Shell ── */}
-      <section className="mx-auto shell-container w-full px-8 py-16">
-        <div className="flex flex-col md:flex-row gap-12 items-center">
-          <div className="flex-1">
-            <h2 className="text-3xl font-semibold text-foreground mb-4">Why Shell?</h2>
-            <p className="text-base text-foreground leading-relaxed mb-8">
-              Shell Energy can be your guide, making it easier to manage day-to-day energy needs while increasing efficiency, managing cost, and addressing your decarbonization goals. Together, we can build a better energy future.
-            </p>
-            <a href="#" className="inline-flex items-center gap-2 font-medium text-primary hover:underline underline-offset-2">
-              Find out more
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </a>
-          </div>
-          <div className="flex-1 flex flex-col gap-4">
-            <div className="rounded-xl border bg-card p-6">
-              <h3 className="font-semibold text-lg text-foreground mb-2">Get started on your business's energy transition today</h3>
-              <a href="#contact" className="inline-flex items-center justify-center mt-2 px-5 py-2.5 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-500-hover transition-colors text-sm">
-                Contact us
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Integrated energy solutions ── */}
-      <section className="bg-gray-50 px-8 py-16">
-        <div className="mx-auto shell-container w-full">
-          <h2 className="text-3xl font-semibold text-foreground mb-3">
-            Integrated energy solutions are key to moving you forward in the energy transition
-          </h2>
-          <p className="text-base text-foreground leading-relaxed mb-10 max-w-3xl">
-            Shell Energy offers a comprehensive suite of cost-effective energy solutions and bundled purchase agreements that let you choose your preferred mix of power and gas products, backed by one of the industry's largest trading operations.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {solutions.map(({ title, body }) => (
-              <div key={title} className="rounded-xl border bg-card p-6 flex flex-col card-hover">
-                <h3 className="font-semibold text-lg text-foreground mb-3">{title}</h3>
-                <p className="text-sm text-foreground leading-relaxed flex-1 mb-4">{body}</p>
-                <a href="#" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline underline-offset-2">
-                  Find out more
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Decarbonization ── */}
-      <section className="relative px-8 py-20 overflow-hidden">
-        <div className="absolute inset-0">
-          <img src={IMG_DECARB} alt="" className="w-full h-full object-cover opacity-20" />
-        </div>
-        <div className="relative mx-auto shell-container w-full flex flex-col md:flex-row gap-12 items-center">
-          <div className="flex-1">
-            <h2 className="text-3xl font-semibold text-foreground mb-4">
-              Effective decarbonization starts with knowing how to take the first step
-            </h2>
-            <p className="text-base text-foreground leading-relaxed mb-8">
-              Shell Energy can work with you to help your business build a roadmap to reach your sustainability goals. Shell Energy is also investing in new technologies and projects to help support a cleaner energy future.
-            </p>
-            <a href="#" className="inline-flex items-center gap-2 font-medium text-primary hover:underline underline-offset-2">
-              Learn more about Decarbonization
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Energy Insights ── */}
-      <section className="bg-primary-dark px-8 py-16">
-        <div className="mx-auto shell-container w-full flex flex-col md:flex-row gap-8 items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-semibold text-white mb-3">Energy Insights</h2>
-            <p className="text-base text-white/80 leading-relaxed">
-              Discover insights, trends and resources to help your business understand the current energy market.
-            </p>
-          </div>
-          <div className="flex-shrink-0">
-            <a href="#" className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-secondary text-secondary-foreground font-medium hover:bg-secondary-hover transition-colors">
-              Get insights
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Portal section ── */}
-      <section id="contact" className="px-8 py-16 bg-gray-50">
-        <div className="mx-auto shell-container w-full flex flex-col md:flex-row gap-12">
-          <div className="flex-1">
-            <h2 className="text-2xl font-semibold text-foreground mb-3">Shell Energy Wholesale Customer Portal</h2>
-            <p className="text-base text-foreground leading-relaxed mb-6">
-              Shell Energy Connect provides 24-hour access to market insights, invoices, account information and more to assist customers in day-to-day business needs.
-            </p>
-            <button onClick={() => setShowLogin(true)} className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-500-hover transition-colors">
-              Access the Shell Energy Connect Portal
-            </button>
-          </div>
-          <div className="flex-1">
-            <h2 className="text-2xl font-semibold text-foreground mb-3">Subscribe to the Shell Energy Weekly Market Update</h2>
-            <p className="text-base text-foreground leading-relaxed mb-6">
-              Stay informed with market insights delivered directly to your inbox every week.
-            </p>
-            <a href="#" className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-primary-500 text-primary-500 font-medium hover:bg-primary-500/5 transition-colors">
-              Sign up now
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Footer ── */}
-      <footer className="bg-gray-800 text-white px-8 py-12">
-        <div className="mx-auto shell-container w-full">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-            {footerCols.map(col => (
-              <div key={col.heading}>
-                <h3 className="font-semibold text-sm uppercase tracking-wider text-white/60 mb-4">{col.heading}</h3>
-                <ul className="flex flex-col gap-2">
-                  {col.links.map(link => (
-                    <li key={link}>
-                      <a href="#" className="text-sm text-white/70 hover:text-white transition-colors hover:underline underline-offset-2">{link}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-white/10 pt-8">
-            <img src={LOGO} alt="Shell Energy" className="h-8 w-auto mb-6 brightness-0 invert" />
-            <p className="text-xs text-white/40 leading-relaxed max-w-4xl">
-              © Copyright 2025 Shell Energy North America (US) L.P. All Rights Reserved.<br />
-              Shell Energy Solutions TX PUCT #10174, MP2 Energy NE LLC d/b/a Shell Energy Solutions Retail Services CT PURA No. 19-02-38 / DC PSC No. 18853 / DE PSC No. 9179 / IL ICC No. 17-0918 / MA DPU CS-179 / MD PSC IR-3995 / ME PSC No. 2018-00309 / NH PUC No. DM 19-072 / NJ BPU No. ESL-0145 / NY ESCO MP2E / OH 13-763E / PA PUC A-2012-2322668 / RI DPU D-96-6 (M9) / VA SCC No. E-34 / SENA CPUC ESP No. 1374
-            </p>
-          </div>
-        </div>
-      </footer>
-
+        <div className="xls-status-right">{statusVal}</div>
+      </div>
     </div>
   )
+}
+
+// ─── SVG Icons ────────────────────────────────────────────────────────────────
+function ExcelIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <rect width="18" height="18" rx="2" fill="#1D6638" />
+      <path d="M4.5 4.5h4L10 8.5 11.5 4.5H13.5l-2.8 4.5 2.8 4.5H11.5L10 9.5 8.5 13.5H6.5L9.3 9 6.5 4.5z" fill="white" />
+    </svg>
+  )
+}
+function AlignLeftSVG() {
+  return <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="1" y="2" width="12" height="1.5"/><rect x="1" y="5.5" width="7" height="1.5"/><rect x="1" y="9" width="12" height="1.5"/><rect x="1" y="12.5" width="7" height="1.5"/></svg>
+}
+function AlignCenterSVG() {
+  return <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="1" y="2" width="12" height="1.5"/><rect x="3.5" y="5.5" width="7" height="1.5"/><rect x="1" y="9" width="12" height="1.5"/><rect x="3.5" y="12.5" width="7" height="1.5"/></svg>
+}
+function AlignRightSVG() {
+  return <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="1" y="2" width="12" height="1.5"/><rect x="6" y="5.5" width="7" height="1.5"/><rect x="1" y="9" width="12" height="1.5"/><rect x="6" y="12.5" width="7" height="1.5"/></svg>
 }

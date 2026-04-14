@@ -1,103 +1,16 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@font-face {
-  font-family: ShellBook;
-  src: url('https://shell-fonts.azureedge.net/ShellBook.woff2') format('woff2'),
-       url('https://shell-fonts.azureedge.net/ShellBook.woff') format('woff');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: ShellBook;
-  src: url('https://shell-fonts.azureedge.net/ShellMedium.woff2') format('woff2'),
-       url('https://shell-fonts.azureedge.net/ShellMedium.woff') format('woff');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: ShellBook;
-  src: url('https://shell-fonts.azureedge.net/ShellHeavy.woff2') format('woff2'),
-       url('https://shell-fonts.azureedge.net/ShellHeavy.woff') format('woff');
-  font-weight: 600 700;
-  font-style: normal;
-  font-display: swap;
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --background-hover: 0 0% 90%;
-    --foreground: 0 0% 25%;
-    --foreground-dark: 0 0% 29%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --primary: 192 100% 37%;
-    --primary-hover: 193 100% 32%;
-    --primary-foreground: 0 0% 98%;
-    --primary-500: 193 100% 32%;
-    --primary-500-hover: 195 100% 27%;
-    --primary-dark: 213 100% 26.7%;
-    --secondary: 47 100% 50%;
-    --secondary-foreground: 240 5.9% 10%;
-    --secondary-hover: 46 100% 45%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 359 77% 49%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
-    --radius: 0.5rem;
-  }
-
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
-  body {
-    font-family: ShellBook, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-    color: hsl(var(--foreground));
-    background: hsl(var(--background));
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  a {
-    color: inherit;
-    text-decoration: none;
-  }
-
-  img {
-    max-width: 100%;
-  }
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
 }
 
-@layer components {
-  .shell-container {
-    max-width: 1440px;
-  }
-
-  .card-hover {
-    transition: box-shadow 0.2s, transform 0.2s;
-  }
-  .card-hover:hover {
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
-    transform: translateY(-2px);
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .animate-fade-in {
-    animation: fade-in 0.5s ease both;
-  }
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
