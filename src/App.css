@@ -290,3 +290,16 @@
   flex-shrink: 0;
   font-family: 'Consolas', monospace;
 }
+
+/* ── Colgroup / row sizing (replaces inline styles) ──────────────────────── */
+.xls-colgroup-hdr { width: 46px; }
+.xls-colgroup-data { width: 100px; }
+.xls-grid-row { height: 24px; }
+
+/* ── Cell text formatting (replaces inline styles) ───────────────────────── */
+.xls-align-left   { text-align: left; }
+.xls-align-center { text-align: center; }
+.xls-align-right  { text-align: right; }
+.xls-bold         { font-weight: bold; }
+.xls-italic       { font-style: italic; }
+.xls-underline    { text-decoration: underline; }

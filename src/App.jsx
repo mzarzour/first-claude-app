@@ -488,11 +488,11 @@ export default function App() {
       >
         <table className="xls-grid">
           <colgroup>
-            <col style={{ width: ROW_HDR_W }} />
-            {COLS.map(col => <col key={col} style={{ width: COL_WIDTH }} />)}
+            <col className="xls-colgroup-hdr" />
+            {COLS.map(col => <col key={col} className="xls-colgroup-data" />)}
           </colgroup>
           <thead>
-            <tr style={{ height: ROW_HEIGHT }}>
+            <tr className="xls-grid-row">
               <th className="xls-hdr xls-corner" />
               {COLS.map(col => (
                 <th key={col} className={`xls-hdr xls-col-hdr${selCell.col === col ? ' active' : ''}`}>{col}</th>
@@ -503,7 +503,7 @@ export default function App() {
             {Array.from({ length: NUM_ROWS }, (_, i) => {
               const row = i + 1
               return (
-                <tr key={row} style={{ height: ROW_HEIGHT }}>
+                <tr key={row} className="xls-grid-row">
                   <td className={`xls-hdr xls-row-hdr${selCell.row === row ? ' active' : ''}`}>{row}</td>
                   {COLS.map(col => {
                     const ref = `${col}${row}`
@@ -536,12 +536,7 @@ export default function App() {
                             spellCheck={false}
                           />
                         ) : (
-                          <div className="xls-cell-text" style={{
-                            textAlign: align,
-                            fontWeight: cell.bold ? 'bold' : undefined,
-                            fontStyle: cell.italic ? 'italic' : undefined,
-                            textDecoration: cell.underline ? 'underline' : undefined,
-                          }}>
+                          <div className={['xls-cell-text', `xls-align-${align}`, cell.bold && 'xls-bold', cell.italic && 'xls-italic', cell.underline && 'xls-underline'].filter(Boolean).join(' ')}>
                             {displayVal}
                           </div>
                         )}
