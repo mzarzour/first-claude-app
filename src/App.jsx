@@ -120,16 +120,138 @@ const evaluate = (formula, getData, depth = 0) => {
     }
   }
 
-  // Replace cell refs with values, then eval as JS expression
+  // Replace cell refs with values, then safely evaluate as arithmetic/string expression
   const substituted = expr.replace(/[A-Z]+\d+/gi, (ref) => {
     const val = resolveRef(ref.toUpperCase())
     if (typeof val === 'string') return JSON.stringify(val)
     return val === '' ? 0 : val
   })
 
+  return safeEval(substituted)
+}
+
+// Safe expression evaluator — replaces Function()/eval to prevent code injection.
+// Supports: numbers, double-quoted strings, +−×÷%**, ^, &(concat),
+//           comparisons (==,!=,<,>,<=,>=), logical (&&,||,!), grouping ().
+const safeEval = (expr) => {
+  const s = expr
+  let pos = 0
+
+  const ws = () => { while (pos < s.length && s[pos] === ' ') pos++ }
+
+  const parseExpr = () => { ws(); return parseOr() }
+
+  const parseOr = () => {
+    let v = parseAnd(); ws()
+    while (s.slice(pos, pos + 2) === '||') { pos += 2; const r = parseAnd(); v = v || r; ws() }
+    return v
+  }
+
+  const parseAnd = () => {
+    let v = parseCmp(); ws()
+    while (s.slice(pos, pos + 2) === '&&') { pos += 2; const r = parseCmp(); v = v && r; ws() }
+    return v
+  }
+
+  const parseCmp = () => {
+    let v = parseConcat(); ws()
+    while (true) {
+      let op = ''
+      if      (s.slice(pos, pos + 3) === '===') op = '==='
+      else if (s.slice(pos, pos + 3) === '!==') op = '!=='
+      else if (s.slice(pos, pos + 2) === '==')  op = '=='
+      else if (s.slice(pos, pos + 2) === '!=')  op = '!='
+      else if (s.slice(pos, pos + 2) === '<=')  op = '<='
+      else if (s.slice(pos, pos + 2) === '>=')  op = '>='
+      else if (s[pos] === '<') op = '<'
+      else if (s[pos] === '>') op = '>'
+      else break
+      pos += op.length
+      const r = parseConcat()
+      if      (op === '===') v = v === r
+      else if (op === '!==') v = v !== r
+      else if (op === '==')  v = v == r   // eslint-disable-line eqeqeq
+      else if (op === '!=')  v = v != r   // eslint-disable-line eqeqeq
+      else if (op === '<=')  v = v <= r
+      else if (op === '>=')  v = v >= r
+      else if (op === '<')   v = v < r
+      else if (op === '>')   v = v > r
+      ws()
+    }
+    return v
+  }
+
+  const parseConcat = () => {
+    let v = parseAdd(); ws()
+    while (s[pos] === '&') { pos++; v = String(v) + String(parseAdd()); ws() }
+    return v
+  }
+
+  const parseAdd = () => {
+    let v = parseMul(); ws()
+    while (s[pos] === '+' || s[pos] === '-') {
+      const op = s[pos++]; const r = parseMul()
+      v = op === '+' ? v + r : v - r; ws()
+    }
+    return v
+  }
+
+  const parseMul = () => {
+    let v = parsePow(); ws()
+    while (s[pos] === '*' || s[pos] === '/' || s[pos] === '%') {
+      const op = s[pos++]; const r = parsePow()
+      if (op === '*') v = v * r
+      else if (op === '/') v = r === 0 ? Infinity : v / r
+      else v = v % r
+      ws()
+    }
+    return v
+  }
+
+  const parsePow = () => {
+    const base = parseUnary(); ws()
+    if (s.slice(pos, pos + 2) === '**' || s[pos] === '^') {
+      pos += s[pos] === '^' ? 1 : 2
+      return Math.pow(base, parseUnary())
+    }
+    return base
+  }
+
+  const parseUnary = () => {
+    ws()
+    if (s[pos] === '-') { pos++; return -parseUnary() }
+    if (s[pos] === '+') { pos++; return +parseUnary() }
+    if (s[pos] === '!') { pos++; return !parseUnary() }
+    return parsePrimary()
+  }
+
+  const parsePrimary = () => {
+    ws()
+    if (s[pos] === '"') {
+      pos++; let str = ''
+      while (pos < s.length && s[pos] !== '"') {
+        if (s[pos] === '\\' && pos + 1 < s.length) { pos++ }
+        str += s[pos++]
+      }
+      if (pos < s.length) pos++
+      return str
+    }
+    if (s[pos] === '(') {
+      pos++; const v = parseExpr(); ws()
+      if (s[pos] === ')') pos++
+      return v
+    }
+    if (s.slice(pos, pos + 4) === 'true')  { pos += 4; return true }
+    if (s.slice(pos, pos + 5) === 'false') { pos += 5; return false }
+    if (s.slice(pos, pos + 4) === 'null')  { pos += 4; return null }
+    const m = s.slice(pos).match(/^(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/)
+    if (m) { pos += m[0].length; return parseFloat(m[0]) }
+    return '#ERROR!'
+  }
+
   try {
-    // eslint-disable-next-line no-new-func
-    return Function('"use strict"; return (' + substituted + ')')()
+    const result = parseExpr()
+    return typeof result === 'boolean' ? (result ? 'TRUE' : 'FALSE') : result
   } catch {
     return '#ERROR!'
   }
