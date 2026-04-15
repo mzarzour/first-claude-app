@@ -190,6 +190,9 @@
   overflow: visible;
 }
 .xls-cell.sel {
+  background: #c7dff2;
+}
+.xls-cell.sel-anchor {
   outline: 2px solid #217346;
   outline-offset: -1px;
   z-index: 5;

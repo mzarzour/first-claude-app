@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import './App.css'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -274,17 +274,37 @@ export default function App() {
   const [allData, setAllData] = useState({ Sheet1: {}, Sheet2: {}, Sheet3: {} })
 
   const [selCell, setSelCell] = useState({ col: 'A', row: 1 })
+  const [selEnd, setSelEnd] = useState(null)   // null = single-cell selection
   const [editCell, setEditCell] = useState(null)
   const [editVal, setEditVal] = useState('')
 
   const containerRef = useRef(null)
   const editInputRef = useRef(null)
   const formulaBarRef = useRef(null)
+  const isDragging = useRef(false)
 
   const selRef = `${selCell.col}${selCell.row}`
   const editRef = editCell ? `${editCell.col}${editCell.row}` : null
   const sheetData = allData[activeSheet] || {}
   const selCellData = sheetData[selRef] || {}
+
+  // Normalised selection rectangle
+  const selRange = useMemo(() => {
+    const minC = selEnd ? Math.min(colIdx(selCell.col), colIdx(selEnd.col)) : colIdx(selCell.col)
+    const maxC = selEnd ? Math.max(colIdx(selCell.col), colIdx(selEnd.col)) : colIdx(selCell.col)
+    const minR = selEnd ? Math.min(selCell.row, selEnd.row) : selCell.row
+    const maxR = selEnd ? Math.max(selCell.row, selEnd.row) : selCell.row
+    return { minC, maxC, minR, maxR }
+  }, [selCell, selEnd])
+
+  const inSel = useCallback((col, row) => {
+    const ci = colIdx(col)
+    return ci >= selRange.minC && ci <= selRange.maxC && row >= selRange.minR && row <= selRange.maxR
+  }, [selRange])
+
+  const nameBoxVal = selEnd && (selEnd.col !== selCell.col || selEnd.row !== selCell.row)
+    ? `${idxToCol(selRange.minC)}${selRange.minR}:${idxToCol(selRange.maxC)}${selRange.maxR}`
+    : selRef
 
   const getData = useCallback((ref) => sheetData[ref]?.v || '', [sheetData])
 
@@ -331,8 +351,19 @@ export default function App() {
 
   const goTo = useCallback((col, row) => {
     setSelCell({ col, row })
+    setSelEnd(null)
     setEditCell(null)
   }, [])
+
+  const extendSel = useCallback((dc, dr) => {
+    setSelEnd(prev => {
+      const base = prev || selCell
+      return {
+        col: idxToCol(Math.max(0, Math.min(NUM_COLS - 1, colIdx(base.col) + dc))),
+        row: Math.max(1, Math.min(NUM_ROWS, base.row + dr)),
+      }
+    })
+  }, [selCell])
 
   useEffect(() => {
     if (editCell && editInputRef.current) {
@@ -343,6 +374,12 @@ export default function App() {
   }, [editCell])
 
   useEffect(() => { containerRef.current?.focus() }, [])
+
+  useEffect(() => {
+    const onMouseUp = () => { isDragging.current = false }
+    document.addEventListener('mouseup', onMouseUp)
+    return () => document.removeEventListener('mouseup', onMouseUp)
+  }, [])
 
   // Formatting shortcuts require reading current selRef and selCellData at call time
   const toggleBold   = () => setCell(selRef, { bold: !selCellData.bold })
@@ -361,17 +398,29 @@ export default function App() {
     }
 
     switch (e.key) {
-      case 'ArrowUp':    e.preventDefault(); move(0, -1); break
-      case 'ArrowDown':  e.preventDefault(); move(0, 1); break
-      case 'ArrowLeft':  e.preventDefault(); move(-1, 0); break
-      case 'ArrowRight': e.preventDefault(); move(1, 0); break
-      case 'Tab':        e.preventDefault(); move(e.shiftKey ? -1 : 1, 0); break
-      case 'Enter':      e.preventDefault(); beginEdit(selRef); break
-      case 'F2':         e.preventDefault(); beginEdit(selRef); break
+      case 'ArrowUp':
+        e.preventDefault()
+        if (e.shiftKey) extendSel(0, -1); else { setSelEnd(null); move(0, -1) }
+        break
+      case 'ArrowDown':
+        e.preventDefault()
+        if (e.shiftKey) extendSel(0, 1); else { setSelEnd(null); move(0, 1) }
+        break
+      case 'ArrowLeft':
+        e.preventDefault()
+        if (e.shiftKey) extendSel(-1, 0); else { setSelEnd(null); move(-1, 0) }
+        break
+      case 'ArrowRight':
+        e.preventDefault()
+        if (e.shiftKey) extendSel(1, 0); else { setSelEnd(null); move(1, 0) }
+        break
+      case 'Tab':        e.preventDefault(); setSelEnd(null); move(e.shiftKey ? -1 : 1, 0); break
+      case 'Enter':      e.preventDefault(); setSelEnd(null); beginEdit(selRef); break
+      case 'F2':         e.preventDefault(); setSelEnd(null); beginEdit(selRef); break
       case 'Delete':
       case 'Backspace':  e.preventDefault(); setCell(selRef, { v: '' }); break
       default:
-        if (e.key.length === 1 && !meta) { e.preventDefault(); beginEdit(selRef, e.key) }
+        if (e.key.length === 1 && !meta) { e.preventDefault(); setSelEnd(null); beginEdit(selRef, e.key) }
     }
   }
 
@@ -466,7 +515,7 @@ export default function App() {
 
       {/* Formula bar */}
       <div className="xls-fbar">
-        <div className="xls-namebox">{selRef}</div>
+        <div className="xls-namebox">{nameBoxVal}</div>
         <div className="xls-fx">fx</div>
         <input
           ref={formulaBarRef}
@@ -485,6 +534,19 @@ export default function App() {
         className="xls-grid-wrap"
         tabIndex={0}
         onKeyDown={handleKeyDown}
+        onMouseMove={(e) => {
+          if (!isDragging.current) return
+          const td = e.target.closest('td[data-ref]')
+          if (td) {
+            const parsed = parseCellRef(td.dataset.ref)
+            if (parsed) {
+              setSelEnd(prev => {
+                if (prev && prev.col === parsed.col && prev.row === parsed.row) return prev
+                return parsed
+              })
+            }
+          }
+        }}
       >
         <table className="xls-grid">
           <colgroup>
@@ -495,7 +557,7 @@ export default function App() {
             <tr className="xls-grid-row">
               <th className="xls-hdr xls-corner" />
               {COLS.map(col => (
-                <th key={col} className={`xls-hdr xls-col-hdr${selCell.col === col ? ' active' : ''}`}>{col}</th>
+                <th key={col} className={`xls-hdr xls-col-hdr${inSel(col, selRange.minR) ? ' active' : ''}`}>{col}</th>
               ))}
             </tr>
           </thead>
@@ -504,7 +566,7 @@ export default function App() {
               const row = i + 1
               return (
                 <tr key={row} className="xls-grid-row">
-                  <td className={`xls-hdr xls-row-hdr${selCell.row === row ? ' active' : ''}`}>{row}</td>
+                  <td className={`xls-hdr xls-row-hdr${row >= selRange.minR && row <= selRange.maxR ? ' active' : ''}`}>{row}</td>
                   {COLS.map(col => {
                     const ref = `${col}${row}`
                     const isSel = selRef === ref
@@ -522,8 +584,9 @@ export default function App() {
                     return (
                       <td
                         key={ref}
-                        className={`xls-cell${isSel ? ' sel' : ''}`}
-                        onClick={() => { if (editCell) commitEdit(); goTo(col, row); containerRef.current?.focus() }}
+                        data-ref={ref}
+                        className={`xls-cell${inSel(col, row) ? ' sel' : ''}${isSel ? ' sel-anchor' : ''}`}
+                        onMouseDown={(e) => { e.preventDefault(); isDragging.current = true; if (editCell) commitEdit(); goTo(col, row); containerRef.current?.focus() }}
                         onDoubleClick={() => { goTo(col, row); beginEdit(ref) }}
                       >
                         {isEditing ? (
